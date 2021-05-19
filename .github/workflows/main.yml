@@ -79,3 +79,62 @@ jobs:
           wait-on-timeout: 360000
           browser: chrome
           spec: tests/e2e/specs/*
+
+      - name: Sending failure notification
+        if: failure()
+        uses: actions/github-script@v4
+        env:
+          CLIENT_ID: ${{ secrets.CLIENT_ID }}
+          CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
+          REFRESH_TOKEN: ${{ secrets.REFRESH_TOKEN }}
+          FROM_EMAIL: ${{ secrets.FROM_EMAIL }}
+          TO_EMAILS: ${{ secrets.TO_EMAILS }}
+          GITHUB_JOB: ${{ github.job }}
+          GITHUB_WORKFLOW: ${{ github.workflow }}
+          GITHUB_REPO: ${{ github.repository }}
+          JOB_STATUS: ${{ job.status }}
+        with:
+          script: |
+            const nodemailer = require('nodemailer')
+            const { google } = require('googleapis')
+            const OAuth2 = google.auth.OAuth2
+
+            const { CLIENT_ID, CLIENT_SECRET, REFRESH_TOKEN, FROM_EMAIL, TO_EMAILS } = process.env
+            const { GITHUB_JOB, GITHUB_WORKFLOW, GITHUB_REPO, JOB_STATUS } = process.env
+
+            const oauth2Client = new OAuth2(
+              CLIENT_ID,
+              CLIENT_SECRET,
+              'https://developers.google.com/oauthplayground'
+            )
+
+            oauth2Client.setCredentials({ refresh_token: REFRESH_TOKEN })
+
+            const ACCESS_TOKEN = oauth2Client.getAccessToken()
+
+            const smtpTransport = nodemailer.createTransport({
+              service: 'gmail',
+              auth: {
+                type: 'OAuth2',
+                user: FROM_EMAIL, 
+                clientId: CLIENT_ID,
+                clientSecret: CLIENT_SECRET,
+                refreshToken: REFRESH_TOKEN,
+                accessToken: ACCESS_TOKEN
+              },
+              tls: {
+                rejectUnauthorized: false
+              }
+            })
+
+            const mailOptions = {
+              from: FROM_EMAIL,
+              to: TO_EMAILS,
+              subject: '[Git Actions] PR failed on some checks',
+              html: `
+                <p>Helle there!</p>
+                <p>The <strong>${ GITHUB_JOB }</strong> job in workflow <strong>${ GITHUB_WORKFLOW }</strong> of <strong>${ GITHUB_REPO }</strong> has <strong>${ JOB_STATUS }</strong></p>
+              `
+            }
+
+            smtpTransport.sendMail(mailOptions, function(error, info){})
