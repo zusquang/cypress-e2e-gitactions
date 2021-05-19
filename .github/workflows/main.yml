@@ -45,7 +45,7 @@ jobs:
         with:
           runTests: false
       # report machine parameters
-      - run: yarn cypress info
+      - run: yarn cypress version
 
   tests:
     timeout-minutes: 15
