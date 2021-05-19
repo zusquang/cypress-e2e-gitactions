@@ -19,7 +19,7 @@ jobs:
           flags: 'gm'
           error: 'Your first line has to contain a commit type like "feat[#number]:".'
 
-  installs:
+  install:
     timeout-minutes: 10
     runs-on: ubuntu-latest
     name: Install prerequisite stuffs
