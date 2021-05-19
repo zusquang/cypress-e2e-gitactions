@@ -74,7 +74,7 @@ jobs:
         with:
           ## specify the viewport for the mobile potential
           # config: "viewportWidth=375,viewportHeight=667" 
-          start: yarn test:e2e
+          start: yarn run serve
           wait-on: "http://localhost:8080"
           wait-on-timeout: 360000
           browser: chrome
