@@ -1,0 +1,89 @@
+name: Cypress E2E tests
+
+on:
+  pull_request:
+    types: [ opened ]
+    branches: [ master ]
+
+jobs:
+
+  check-commit-message:
+    timeout-minutes: 5
+    runs-on: ubuntu-latest
+    name: PR's title convention
+    steps:
+      - name: Check PR's title convention
+        uses: gsactions/commit-message-checker@v1
+        with:
+          pattern: '(feat|fix|docs|chore|test|style|refactor|release|bump)\[\#([0-9]+)\]:\s.+$'
+          flags: 'gm'
+          error: 'Your first line has to contain a commit type like "feat[#number]:".'
+
+  installs:
+    timeout-minutes: 10
+    runs-on: ubuntu-latest
+    name: Install prerequisite stuffs
+    container: cypress/browsers:node12.18.3-chrome87-ff82
+    needs: check-commit-message
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - uses: actions/cache@v2
+        id: yarn-and-build-cache
+        with:
+          path: |
+            ~/.cache/Cypress
+            build
+            node_modules
+          key: ${{ runner.os }}-node_modules-build-${{ hashFiles('**/yarn.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-node_modules-build-
+
+      - name: Cypress install
+        uses: cypress-io/github-action@v2
+        with:
+          runTests: false
+      # report machine parameters
+      - run: yarn cypress info
+
+  tests:
+    timeout-minutes: 15
+    runs-on: ubuntu-latest
+    name: Running the tests
+    container: cypress/browsers:node12.18.3-chrome87-ff82
+    needs: install
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - uses: actions/setup-node@v2
+        with:
+          node-version: 14
+      - run: |
+          npm install
+          npm install googleapis
+          npm install nodemailer
+
+      - uses: actions/cache@v2
+        id: yarn-and-build-cache
+        with:
+          path: |
+            ~/.cache/Cypress
+            build
+            node_modules
+          key: ${{ runner.os }}-node_modules-build-${{ hashFiles('**/yarn.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-node_modules-build-
+
+      - name: "UI Tests"
+        uses: cypress-io/github-action@v2
+        id: cypress-tests
+        with:
+          ## specify the viewport for the mobile potential
+          # config: "viewportWidth=375,viewportHeight=667" 
+          start: yarn test:e2e
+          wait-on: "http://localhost:8080"
+          wait-on-timeout: 360000
+          browser: chrome
+          spec: tests/e2e/specs/*
